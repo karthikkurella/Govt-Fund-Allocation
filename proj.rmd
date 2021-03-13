@@ -1,0 +1,637 @@
+```
+title: "project"
+author: "Karthik Kurella (17MIS1022)"
+date: "25/08/2020"
+```
+
+```{r,echo=FALSE}
+#install.packages("mltools")
+library(tidyverse)
+library(forcats)
+library(ggplot2)
+library(dplyr)
+library(stargazer)
+library(caret)
+library(modelr)
+library(Hmisc)
+library(DataExplorer)
+library(usmap)
+library(ggplot2)
+library(skimr)
+library(devtools)
+library(visdat)
+library(tidyr)
+library(tidyverse)
+library(forcats)
+library(readr)
+library(dplyr)
+library(arules)
+library(mltools)
+library(arulesViz)
+library(factoextra)
+library(stats)
+library(klaR)
+library(e1071)
+
+
+library(rpart)
+library(rattle)
+library(rpart.plot)
+library(RColorBrewer)
+library(class) 
+library(gmodels)
+library(ggplot2)
+
+library(MASS)
+library(FactoMineR)
+```
+
+```{r}
+ACSData<- read_csv("E:\\Sems\\sem-7\\Intro to Data Analytics\\proj_data\\ACS_full_data_wo_over_60.csv")
+```
+
+```{r}
+nrow(ACSData)
+#str(ACSData)
+ncol(ACSData)
+colnames(ACSData)
+```
+
+```{r}
+head(ACSData)
+```
+
+DataCleaning
+
+```{r}
+ACSData$X1<-factor(ACSData$X1)
+ACSData$STATE<-factor(ACSData$STATE)
+ACSData$COUNTY<-factor(ACSData$COUNTY)
+```
+
+```{r}
+plot_str(ACSData)
+```
+
+```{r}
+plot_intro(ACSData)
+```
+
+```{r}
+#Checking for any NA values
+sum(is.na(ACSData))
+library(DataExplorer)
+plot_missing(ACSData[,1:33])
+plot_missing(ACSData[,34:66])
+plot_missing(ACSData[,67:99])
+plot_missing(ACSData[,100:133])
+
+```
+
+```{r}
+introduce(ACSData)
+```
+
+```{r}
+CountByState = ACSData[,c(2,5,6,7,8,132,133)]
+head(CountByState)
+#str(CountByState)
+
+CountByState_agg = aggregate(CountByState[,c(2,3,4,5,6,7)],
+                by = list(ACSData$STATE),
+                FUN = sum)
+
+names(CountByState_agg)[names(CountByState_agg) == "Group.1"] <- "state"
+
+head(CountByState_agg)
+```
+
+```{r}
+CountByState_agg$'Confirmed_Increased_Perc' <- ((CountByState_agg$'4_22_Confirmed' - CountByState_agg$'4_16_Confirmed') / CountByState_agg$'4_16_Confirmed') * 100
+
+CountByState_agg$'Deaths_Increased_Perc' <- ((CountByState_agg$'4_22_Deaths' - CountByState_agg$'4_16_Deaths') / CountByState_agg$'4_16_Deaths') * 100
+
+CountByState_agg$'Confirmed_Increased_Perc' <- round(CountByState_agg$'Confirmed_Increased_Perc', 2)
+
+CountByState_agg$'Deaths_Increased_Perc' <- round(CountByState_agg$'Deaths_Increased_Perc', 2)
+
+head(CountByState_agg)
+```
+
+```{r}
+# create groups
+
+CountByState_agg_0422C = CountByState_agg[,c(1,2)]
+head(CountByState_agg_0422C)
+
+CountByState_agg_0422D= CountByState_agg[,c(1,3)]
+head(CountByState_agg_0422D)
+
+CountByState_agg_0416C= CountByState_agg[,c(1,4)]
+head(CountByState_agg_0416C)
+
+CountByState_agg_0416D= CountByState_agg[,c(1,5)]
+head(CountByState_agg_0416D)
+
+CountByState_agg_DeathRise= CountByState_agg[,c(1,6)]
+head(CountByState_agg_DeathRise)
+
+CountByState_agg_ConfirmedRise= CountByState_agg[,c(1,7)]
+head(CountByState_agg_ConfirmedRise)
+```
+
+```{r}
+#order from high to low with '4_22_Confirmed'
+CountByState_agg_0422C[order(-CountByState_agg$'4_22_Confirmed'),]
+#order from high to low with '4_22_Deaths'
+CountByState_agg_0422D[order(-CountByState_agg$'4_22_Deaths'),]
+#order from high to low with '4_16_Confirmed'
+CountByState_agg_0416C[order(-CountByState_agg$'4_16_Confirmed'),]
+#order from high to low with '4_16_Deaths'
+CountByState_agg_0416D[order(-CountByState_agg$'4_16_Deaths'),]
+#order from high to low with 'Death_Rise_4_16_to_20'
+CountByState_agg_DeathRise[order(-CountByState_agg$'Death_Rise_4_16_to_20'),]
+#order from high to low with 'Confirmed_Rise_4_16_to_20'
+CountByState_agg_ConfirmedRise[order(-CountByState_agg$'Confirmed_Rise_4_16_to_20'),]
+```
+
+```{r}
+plot_usmap(data = CountByState_agg_0422C, values = "4_22_Confirmed", color = "red") + 
+  scale_fill_continuous(low = "white", high = "red", name = "04/22 COVID-19 Confirmed", label = scales::comma) + 
+  theme(legend.position = "right")
+
+plot_usmap(data = CountByState_agg_0422D, values = "4_22_Deaths", color = "red") + 
+  scale_fill_continuous(low = "white", high = "red", name = "04/22 COVID-19 Deaths", label = scales::comma) + 
+  theme(legend.position = "right")
+
+plot_usmap(data = CountByState_agg_0416C, values = "4_16_Confirmed", color = "red") + 
+  scale_fill_continuous(low = "white", high = "red", name = "04/16 COVID-19 Confirmed", label = scales::comma) + 
+  theme(legend.position = "right")
+
+plot_usmap(data = CountByState_agg_0416D, values = "4_16_Deaths", color = "red") + 
+  scale_fill_continuous(low = "white", high = "red", name = "04/16 COVID-19 Deaths", label = scales::comma) + 
+  theme(legend.position = "right")
+
+plot_usmap(data = CountByState_agg_DeathRise, values = "Death_Rise_4_16_to_20", color = "red") + 
+  scale_fill_continuous(low = "white", high = "red", name = "COVID-19 Deaths Increased\nfrom 04/16 to 04/22", label = scales::comma) + 
+  theme(legend.position = "right")
+
+plot_usmap(data = CountByState_agg_ConfirmedRise, values = "Confirmed_Rise_4_16_to_20", color = "red") + 
+  scale_fill_continuous(low = "white", high = "red", name = "COVID-19 Confirmed Increased\nfrom 04/16 to 04/22", label = scales::comma) + 
+  theme(legend.position = "right")
+```
+
+```{r}
+str(CountByState_agg)
+#Barplot 4_22_Confirmed
+par(mar=c(11,4,2,4))
+barplot(CountByState_agg$'4_22_Confirmed',
+main = "Infected with COVID-19 0422 Confirmed",
+names = CountByState_agg$STATE,
+col = "darkred",
+las=2,
+horiz = FALSE)
+
+#Barplot 4_22_Deaths
+barplot(CountByState_agg$'4_22_Deaths',
+main = "Infected with COVID-19 0422 Deaths",
+names = CountByState_agg$STATE,
+col = "darkred",
+las=2,
+horiz = FALSE)
+
+#Barplot 4_16_Confirmed
+barplot(CountByState_agg$'4_16_Confirmed',
+main = "Infected with COVID-19 0416 Confirmed",
+names = CountByState_agg$STATE,
+col = "darkred",
+las=2,
+horiz = FALSE)
+
+#Barplot 4_16_Deaths
+barplot(CountByState_agg$'4_16_Deaths',
+main = "Infected with COVID-19 0416 Deaths",
+names = CountByState_agg$STATE,
+col = "darkred",
+las=2,
+horiz = FALSE)
+
+#Barplot Death_Rise_4_16_to_20
+barplot(CountByState_agg$'Death_Rise_4_16_to_20',
+main = "Infected with COVID-19 Death Rise 0416 to 0420",
+names = CountByState_agg$STATE,
+col = "darkred",
+las=2,
+horiz = FALSE)
+
+#Barplot Confirmed_Rise_4_16_to_20
+barplot(CountByState_agg$'Confirmed_Rise_4_16_to_20',
+main = "Infected with COVID-19 Confirmed Rise 0416 to 0420",
+names = CountByState_agg$STATE,
+col = "darkred",
+las=2,
+horiz = FALSE)
+```
+```{r}
+plot(CountByState_agg$'4_22_Confirmed', CountByState_agg$'4_22_Deaths')
+plot(CountByState_agg$'4_16_Confirmed', CountByState_agg$'4_16_Deaths')
+plot(CountByState_agg$'Confirmed_Rise_4_16_to_20', CountByState_agg$'Death_Rise_4_16_to_20')
+```
+```{r}
+boxplot(CountByState_agg$'4_22_Confirmed', main="4_22_Confirmed")
+boxplot(CountByState_agg$'4_22_Deaths', main="4_22_Deaths")
+boxplot(CountByState_agg$'4_16_Confirmed', main="4_16_Confirmed")
+boxplot(CountByState_agg$'4_16_Deaths', main="4_16_Deaths")
+boxplot(CountByState_agg$'Confirmed_Rise_4_16_to_20', main="Confirmed_Rise_4_16_to_20")
+boxplot(CountByState_agg$'Death_Rise_4_16_to_20', main="Death_Rise_4_16_to_20")
+```
+```{r}
+plot(CountByState_agg$'4_22_Confirmed', log(CountByState_agg$'4_22_Confirmed'), main="4_22_Confirmed")
+plot(CountByState_agg$'4_22_Deaths', log(CountByState_agg$'4_22_Deaths'), main="4_22_Deaths")
+plot(CountByState_agg$'4_16_Confirmed', log(CountByState_agg$'4_16_Confirmed'), main="4_16_Confirmed")
+plot(CountByState_agg$'4_16_Deaths', log(CountByState_agg$'4_16_Deaths'), main="4_16_Deaths")
+plot(CountByState_agg$'Confirmed_Rise_4_16_to_20', log(CountByState_agg$'Confirmed_Rise_4_16_to_20'), main="Confirmed_Rise_4_16_to_20")
+plot(CountByState_agg$'Death_Rise_4_16_to_20', log(CountByState_agg$'Death_Rise_4_16_to_20'), main="Death_Rise_4_16_to_20")
+```
+```{r}
+AggregateByState = ACSData[,2:133]
+AggregateByState = AggregateByState[,-2]
+head(AggregateByState)
+ncol(AggregateByState)
+AggregateByState %>% drop_na()
+```
+```
+
+```{r}
+AggregateByState = ACSData[,2:133]
+AggregateByState = AggregateByState[,-2]
+AggregateByState %>% drop_na()
+head(AggregateByState)
+#str(AggregateByState)
+
+AggregateByState_all = aggregate(AggregateByState[,2:131],
+                by = list(AggregateByState$STATE),
+                FUN = sum)
+
+#AggregateByState_all
+names(AggregateByState_all)
+names(AggregateByState_all)[names(AggregateByState_all) == "Group.1"] <- "state"
+head(AggregateByState_all)
+```
+
+Preprocess the Data
+
+```{r}
+D <- data.frame (ACSData)
+#str(D)
+#colnames(D)
+Original_D_Col <- ncol(D)
+```
+
+```{r}
+D$Confirmed_Per_Capita_4_22 <- D$X4_22_Confirmed / D$ET_Total_Population
+D$Deaths_Per_Capita_4_22    <- D$X4_22_Deaths    / D$ET_Total_Population
+D$Deaths_Per_Confirmed_4_22 <- D$Deaths_Per_Capita_4_22 / D$Confirmed_Per_Capita_4_22
+
+D$Confirmed_Per_Capita_4_16 <- D$X4_16_Confirmed / D$ET_Total_Population
+D$Deaths_Per_Capita_4_16    <- D$X4_16_Deaths    / D$ET_Total_Population
+D$Deaths_Per_Confirmed_4_16 <- D$Deaths_Per_Capita_4_16 / D$Confirmed_Per_Capita_4_16 
+
+
+D$Two_Week_Confirm_Rate_Per_Capita <- (D$X4_22_Confirmed-D$X4_16_Confirmed)/D$ET_Total_Population
+D$Two_Week_Death_Rate_Per_Capita <- (D$X4_22_Death-D$X4_16_Death)/D$ET_Total_Population
+
+D$Fraction_Female <- D$E_Total_Pop_SEX_Female / D$ET_Total_Population
+
+D$Fraction_White <- D$E_Total_Pop_RACE_White / D$ET_Total_Population
+D$Fraction_Black <- D$E_Total_Pop_RACE_Black / D$ET_Total_Population
+D$Fraction_Other <- (D$E_Total_Pop_RACE_Native_Pop + D$E_Total_Pop_RACE_Asian +
+                     D$E_Total_Pop_RACE_Pacific_Islander + D$E_Total_Pop_RACE_Other_Race +
+                     D$E_Total_Pop_RACE_Two_or_More_Races) / D$ET_Total_Population
+
+D$Hispanic <- D$E_Total_Pop_RACE_Hispanic / D$ET_Total_Population
+
+D$Population_Over_Age_15 <- D$E_Total_Pop_Over_15_EDUCATION_Less_Than_High_School + 
+                          D$E_Total_Pop_Over_15_EDUCATION_High_School_Grad + 
+                          D$E_Total_Pop_Over_15_EDUCATION_Some_College+ 
+                          D$E_Total_Pop_Over_15_EDUCATION_Bachelors_Degree_or_Higher
+D$Fraction_Less_Than_HS <-        D$E_Total_Pop_Over_15_EDUCATION_Less_Than_High_School / D$Population_Over_Age_15
+D$Fraction_High_School_Grad <-    D$E_Total_Pop_Over_15_EDUCATION_High_School_Grad / D$Population_Over_Age_15
+D$Fraction_Some_College <-        D$E_Total_Pop_Over_15_EDUCATION_Some_College / D$Population_Over_Age_15
+D$Fraction_Bachelors_or_Higher <- D$E_Total_Pop_Over_15_EDUCATION_Bachelors_Degree_or_Higher / D$Population_Over_Age_15
+
+D$Fraction_Disabled <- D$E_Total_Pop_DISABILITY_STATUS_Yes / D$ET_Total_Population
+
+D$Fraction__Limited_English <- D$E_Total_Pop_Over_5_LANGUAGE_Limited_English / D$ET_Total_Population
+
+D$Fraction_Unemployed <- D$E_Total_Pop_Over_16_EMPLOYMENT_STATUS_In_Civilian_Labor_Force_Unemployed / 
+                         D$ET_Total_Pop_Over_16_EMPLOYMENT_STATUS_In_Labor_Force
+
+D$Fraction_Below_Poverty_Line <- D$E_Total_Pop_POVERTY_STATUS_Below_100_Percent / D$ET_Total_Population
+D$Fraction_Btwn_100_149_Above_Poverty_Line <- D$E_Total_Pop_POVERTY_STATUS_Btwn_100_149_Percent / D$ET_Total_Population
+D$Fraction_Not_Citizen <- D$E_Total_Pop_CITIZENSHIP_Foreign_Born_Not_US_Citizen / D$ET_Total_Population
+```
+
+```{r}
+E<- D[,1:10]
+#str(E)
+cnames <- colnames(E)
+cnames[1] <- c("ID")
+cnames[5] <- c("Confirmed_4_22")
+cnames[6] <- c("Deaths_4_22")
+cnames[7] <- c("Confirmed_4_16")
+cnames[8] <- c("Deaths_4_16")
+cnames
+colnames(E) <- cnames
+```
+
+```{r}
+
+Original_D_Col
+New_D_Col <- ncol(D)
+New_D_Col
+D_Col_to_Add <- Original_D_Col+1
+
+E <- data.frame(E,D[,D_Col_to_Add:New_D_Col])
+colnames(E)
+ncol(E)
+#head(E)
+#str(E)
+```
+
+```{r}
+E$Confirmed_4_16 <- as.numeric(E$Confirmed_4_16)
+E$Deaths_4_16 <- as.numeric(E$Deaths_4_16)
+E$Confirmed_4_22 <- as.numeric(E$Confirmed_4_22)
+E$Deaths_4_22 <- as.numeric(E$Deaths_4_22)
+E$ET_Total_Population <- as.numeric(E$ET_Total_Population)
+```
+
+```{r}
+New_Data <- data.frame(E)
+#str(New_Data)
+# Look for any NAs
+sum(is.na(New_Data))
+
+New_Data <- na.omit(New_Data)
+sum(is.na(New_Data))
+```
+```{r}
+summary(New_Data)
+summary(New_Data$Deaths_Per_Confirmed_4_16)
+
+```
+
+```{r}
+g <- ggplot(New_Data, aes(x=Confirmed_4_16, y=Deaths_Per_Confirmed_4_16))
+g <- g+ geom_point(shape=1) + ggtitle("Scatter Plot of Normalized Death Rates vs Confirmed Cases")
+g
+```
+
+```{r}
+DataZoomed<- New_Data[New_Data$Confirmed_4_16<100,]
+
+nrow(DataZoomed)
+g <- ggplot(DataZoomed, aes(x=Confirmed_4_16, y=Deaths_Per_Confirmed_4_16))
+g <- g+ geom_point(shape=1) + ggtitle("Scatter Plot of Normalized Death Rates vs Confirmed Cases Zoomed into Comfirmed<100")
+g
+```
+
+```{r}
+BigRatesRow <- which(New_Data$Deaths_Per_Confirmed_4_16>.25)
+BigRatesRow
+```
+
+```{r}
+BigRatesZScore <- (New_Data$Deaths_Per_Confirmed_4_16[BigRatesRow]-mean(New_Data$Deaths_Per_Confirmed_4_16[]))/
+  sd(New_Data$Deaths_Per_Confirmed_4_16)
+BigRatesZScore 
+```
+
+```{r}
+Threshold <- 3*sd(New_Data$Deaths_Per_Confirmed_4_16) +mean(New_Data$Deaths_Per_Confirmed_4_16)
+Threshold
+```
+
+```{r}
+BigRatesRow <- which(New_Data$Deaths_Per_Confirmed_4_16>Threshold)
+BigRatesRow
+New_Data$Confirmed_4_16[BigRatesRow]
+```
+
+```{r}
+No_Outliers <- New_Data[New_Data$Deaths_Per_Confirmed_4_16<Threshold,]
+nrow(New_Data)
+nrow(No_Outliers)
+```
+
+```{r}
+
+g <- ggplot(No_Outliers, aes(x=Confirmed_4_16, y=Deaths_Per_Confirmed_4_16))
+g <- g+ geom_point(shape=1) + ggtitle("Scatter Plot of Normalized Death Rates vs Confirmed Cases w/ Outliers Removed")
+g
+
+```
+
+```{r}
+#str(No_Outliers)
+SmallData <- data.frame(No_Outliers[,-c(5,6,7,8,11,12,14,15,17,18)])
+glimpse(SmallData)
+#str(SmallData)
+```
+
+```{r}
+Min_Max_function <- function(x) {
+  return( (x-min(x)) / (max(x) - min(x)))
+}
+
+SmallDataNumeric <- SmallData[,-1:-3]
+ncol(SmallDataNumeric)
+#str(SmallDataNumeric)
+SmallNorm <- as.data.frame(lapply(SmallDataNumeric,Min_Max_function))
+#str(SmallNorm)
+summary(SmallNorm)
+SmallNorm <- SmallNorm[,-4]
+ncol(SmallDataNumeric)
+```
+
+```{r}
+hist(SmallData$Deaths_Per_Confirmed_4_16)
+```
+
+```{r}
+g <- ggplot(SmallNorm, aes(x=Deaths_Per_Confirmed_4_16))
+g <- g+ geom_histogram(binwidth=.025) + ggtitle("Histogram of Normalizes Death Rates Zoomed into binwidth = .025")
+g
+```
+
+```{r}
+g <- ggplot(SmallNorm, aes(x=Deaths_Per_Confirmed_4_16))
+g <- g+ geom_histogram(binwidth=.025)  + ggtitle("Histogram of Normalizes Death Rates Zoomed into binwidth = .005")
+g
+
+```
+
+```{r}
+Preprocessed_Data <- SmallNorm
+Preprocessed_Data[, "Deaths_Per_Confirmed_4_16"] <- bin_data(Preprocessed_Data$Deaths_Per_Confirmed_4_16, bins=c(0,0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0), binType = "explicit")
+counts <- table(Preprocessed_Data$Deaths_Per_Confirmed_4_16)
+barplot(counts, main="Count per Bin for Deaths_Per_Confirmed_4_16", 
+   xlab="Deaths_Per_Confirmed_4_16",las=3)
+```
+
+Classification
+
+```{r}
+
+#SmallNorm
+ClassData<- SmallNorm
+#str(ClassData)
+ClassData$Bin<-Preprocessed_Data$Deaths_Per_Confirmed_4_16
+colnames(ClassData)
+ClassData <- ClassData[,-4]
+colnames(ClassData)
+#str(ClassData)
+#ncol(ClassData)
+```
+
+KNN with Cross Fold Validation
+
+```{r}
+#str(training)
+data<-ClassData
+set.seed(300)
+indxTrain <- createDataPartition(y = data$Bin,p = 0.75,list = FALSE)
+training <- data[indxTrain,]
+testing <- data[-indxTrain,] 
+x <- training[,-20]
+y <- training$Bin
+model <- train(x,y, 'knn',trControl=trainControl(method='cv',number=5), tuneLength=20)
+model
+
+Prediction <- predict(model, newdata=testing)
+#Results <- table(unlist(Prediction),unlist(testing$Bin))
+#Results <-as.data.frame.matrix(Results)
+#Results
+confusionMatrix(Prediction, testing$Bin)
+plot(testing$Bin, ylab="Density",main="Test Data")
+plot(  Prediction, ylab = "Density", main = "KNN Plot")
+```
+
+* Observation: 25 values of K were attempted. K=53 was best with an training accuracy of 50% and kappa .18 The testing accuracy is 49% This model is putting most of the predictions in the first bin and a few in the 3rd and 4th and none elsewhere
+
+SVM - Linear Kernel 
+```{r}
+trctrl <- trainControl(method = "repeatedcv", number = 10, repeats = 3)
+set.seed(333)
+model <- train(Bin ~., data = training, method = "svmLinear",
+                 trControl=trctrl,
+                 preProcess = c("center", "scale"),
+                 tuneLength = 10)
+model
+Prediction <- predict(model, newdata=testing)
+plot(testing$Bin, ylab="Density",main="Test Data")
+plot(  Prediction, ylab = "Density", main = "SVM Linear Plot")
+
+# Results <- table(unlist(Prediction),unlist(testing$Bin))
+# Results <-as.data.frame.matrix(Results)
+# Results
+confusionMatrix(Prediction, testing$Bin)
+summary(model)
+```
+```{r}
+
+grid <- expand.grid(C = c(0,0.01, 0.05, 0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2,5))
+model <- train(Bin ~., data = training, method = "svmLinear",
+                 trControl=trctrl,
+                 preProcess = c("center", "scale"),
+                 tuneGrid = grid,
+                 tuneLength = 10)
+model
+Prediction <- predict(model, newdata=testing)
+plot(testing$Bin, ylab="Density",main="Test Data")
+plot(  Prediction, ylab = "Density", main = "SVM Linear tuned Plot")
+
+confusionMatrix(Prediction, testing$Bin)
+```
+```{r}
+
+MyDF <- SmallDataNumeric[,-4]
+dim(MyDF)
+ str(MyDF)
+Temp <- MyDF[,-4]
+#str(Temp)
+Temp<-t(Temp)
+#class(Temp)
+#str(Temp)
+#class(Temp)
+ncol(Temp)
+pca = PCA(Temp)
+pca$var$coord
+
+DigitDF = data.frame(MyDF$Deaths_Per_Confirmed_4_16,pca$var$coord)
+dim(DigitDF)
+head(DigitDF)
+#unique(DigitDF$MyDF.label)
+cnames <- colnames(DigitDF)
+cnames[1]<- c("Deaths_Per_Confirmed_4_16")
+colnames(DigitDF)<-cnames
+str(DigitDF)
+
+
+NormDeathRate <- (DigitDF$Deaths_Per_Confirmed_4_16 - min(DigitDF$Deaths_Per_Confirmed_4_16)) /
+(max(DigitDF$Deaths_Per_Confirmed_4_16)-min(DigitDF$Deaths_Per_Confirmed_4_16))
+ NormDeathRate <- as.data.frame(NormDeathRate)
+ str(NormDeathRate)
+ summary(NormDeathRate)
+ colnames(NormDeathRate)
+
+ NormDeathRate[, "NormDeathRate"] <- bin_data(NormDeathRate$NormDeathRate, bins=c(0,0.05,0.1,0.2,0.3,0.4,0.5,0.6,0.7,0.8,0.9,1.0), binType = "explicit")
+
+
+NormDeathRatePCA <- data.frame(NormDeathRate, DigitDF)
+
+NormDeathRatePCA <- NormDeathRatePCA[,-2]
+#summary(NormDeathRatePCA)
+cname<- colnames(NormDeathRatePCA)
+cname
+cname[1]<-c("Bin")
+colnames(NormDeathRatePCA)<-cname
+str(NormDeathRatePCA)
+data<-NormDeathRatePCA
+set.seed(300)
+indxTrain <- createDataPartition(y = data$Bin,p = 0.75,list = FALSE)
+training <- data[indxTrain,]
+testing <- data[-indxTrain,] 
+
+prop.table(table(training$Bin)) * 100
+
+prop.table(table(testing$Bin)) * 100
+
+
+x <- training[,-1]
+y <- training$Bin
+
+control <- trainControl(method="repeatedcv", number=10, repeats=3)
+seed <- 7
+metric <- "Accuracy"
+set.seed(seed)
+mtry <- sqrt(ncol(x))
+tunegrid <- expand.grid(.mtry=mtry)
+model <- train(Bin~., data=training, method="rf", metric=metric, tuneGrid=tunegrid, trControl=control)
+print(model)
+Prediction <- predict(model, newdata=testing)
+plot(testing$Bin, ylab="Density",main="Test Data")
+plot(  Prediction, ylab = "Density", main = "PCA RF Plot")
+
+# Results <- table(unlist(Prediction),unlist(testing$Bin))
+# Results <-as.data.frame.matrix(Results)
+# Results
+confusionMatrix(Prediction, testing$Bin)
+
+```
+* Observation:With a training accuracy of 47% that is performed on the cross validation of 10 fold, repeated 3 times. 
+The PCA analysis was able to reduce the dimension from 19 to 5 dimensions . This is fed with the features of DF(Death on 4_16) and then predicted.
+
+
+N
